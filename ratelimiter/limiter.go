@@ -11,14 +11,14 @@ type Limiter interface {
 type RateLimiter struct {
 	rules       map[string]LimiterRule
 	defaultRule LimiterRule
-	Redis       *Redis
+	redis       *Redis
 }
 
 func New(rule LimiterRule, addr string, port int) *RateLimiter {
 	return &RateLimiter{
 		rules:       make(map[string]LimiterRule),
 		defaultRule: rule,
-		Redis:       NewRedis(addr, port),
+		redis:       NewRedis(addr, port),
 	}
 }
 
@@ -38,5 +38,5 @@ func (r *RateLimiter) ruleFor(ctx context.Context, path string) LimiterRule {
 func (r *RateLimiter) IsAllowed(ctx context.Context, user, path string) (*LimitStatus, error) {
 	rule := r.ruleFor(ctx, path)
 	uniquePath := user + path
-	return r.Redis.IsAllowed(ctx, uniquePath, rule)
+	return r.redis.IsAllowed(ctx, uniquePath, rule)
 }
