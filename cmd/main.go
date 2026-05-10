@@ -14,7 +14,7 @@ func main() {
 		Window: time.Minute,
 		Limit:  50,
 	}
-	rl := ratelimiter.New(defaultRule)
+	rl := ratelimiter.New(defaultRule, "localhost", 6379)
 
 	authRule := ratelimiter.LimiterRule{
 		Window: time.Second * 30,
