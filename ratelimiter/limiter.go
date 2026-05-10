@@ -2,6 +2,7 @@ package ratelimiter
 
 import (
 	"context"
+	"sync"
 )
 
 type Limiter interface {
@@ -9,6 +10,7 @@ type Limiter interface {
 }
 
 type RateLimiter struct {
+	mu          sync.RWMutex
 	rules       map[string]LimiterRule
 	defaultRule LimiterRule
 	redis       *Redis
@@ -23,11 +25,17 @@ func New(rule LimiterRule, addr string, port int) *RateLimiter {
 }
 
 func (r *RateLimiter) AddRule(ctx context.Context, path string, rule LimiterRule) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	r.rules[path] = rule
 	return nil
 }
 
 func (r *RateLimiter) ruleFor(ctx context.Context, path string) LimiterRule {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
 	rule, ok := r.rules[path]
 	if ok {
 		return rule
