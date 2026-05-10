@@ -45,6 +45,7 @@ func (r *Redis) IsAllowed(ctx context.Context, uniquePath string, rule LimiterRu
 			Score:  float64(currentTime),
 			Member: currentTimeStr,
 		})
+		r.client.Expire(ctx, uniquePath, rule.Window)
 		remaining--
 	}
 
