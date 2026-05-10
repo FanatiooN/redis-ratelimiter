@@ -37,6 +37,6 @@ func (r *RateLimiter) ruleFor(ctx context.Context, path string) LimiterRule {
 
 func (r *RateLimiter) IsAllowed(ctx context.Context, user, path string) (*LimitStatus, error) {
 	rule := r.ruleFor(ctx, path)
-	uniquePath := user + path
+	uniquePath := user + ":" + path
 	return r.redis.IsAllowed(ctx, uniquePath, rule)
 }
