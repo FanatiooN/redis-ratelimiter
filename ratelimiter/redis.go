@@ -29,8 +29,8 @@ func (r *Redis) IsAllowed(ctx context.Context, uniquePath string, rule LimiterRu
 	lastTimeStr := strconv.FormatInt(lastTime, 10)
 
 	r.client.ZRemRangeByScore(ctx, uniquePath, "0", lastTimeStr)
-	cnt, err := r.client.ZCard(ctx, uniquePath).Result()
 
+	cnt, err := r.client.ZCard(ctx, uniquePath).Result()
 	if err != nil {
 		return nil, err
 	}
@@ -46,10 +46,12 @@ func (r *Redis) IsAllowed(ctx context.Context, uniquePath string, rule LimiterRu
 			Member: currentTimeStr,
 		})
 		r.client.Expire(ctx, uniquePath, rule.Window)
+
 		remaining--
 	}
 
 	retryAfter := time.Time{}
+
 	if !allowed {
 		oldest, _ := r.client.ZRangeWithScores(ctx, uniquePath, 0, 0).Result()
 
