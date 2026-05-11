@@ -1,0 +1,84 @@
+version: 2
+
+run:
+  include:
+    - ratelimiter/..
+    - cmd/..
+  tests: false
+
+linters:
+  default: none
+  enable:
+    - asasalint
+    - asciicheck
+    - bidichk
+    - bodyclose
+    - canonicalheader
+    - govet
+    - errcheck
+    - staticcheck
+    - unused
+    - ineffassign
+    - unconvert
+    - goconst
+    - gocyclo
+    - gocognit
+    - misspell
+    - dogsled
+    - nakedret
+    - prealloc
+    - gocritic
+    - whitespace
+    - wsl_v5
+    - errorlint
+    - predeclared
+    - unparam
+    - usestdlibvars
+    - copyloopvar # detects places where loop variables are copied (Go 1.22+)
+    - dupl # tool for code clone detection
+    - durationcheck # checks for two durations multiplied together
+    - embeddedstructfieldcheck # checks embedded types in structs
+    - exhaustive # checks exhaustiveness of enum switch statements
+    - fatcontext # detects nested contexts in loops
+    - iface # checks the incorrect use of interfaces, helping developers avoid interface pollution
+    - sqlclosecheck # checks that sql.Rows and sql.Stmt are closed
+  settings:
+    cyclop:
+      # The maximal code complexity to report.
+      # Default: 10
+      max-complexity: 30
+      # The maximal average package complexity.
+      # If it's higher than 0.0 (float) the check is enabled.
+      # Default: 0.0
+      package-average: 10.0
+    funlen:
+      # Checks the number of lines in a function.
+      # If lower than 0, disable the check.
+      # Default: 60
+      lines: 70
+      # Checks the number of statements in a function.
+      # If lower than 0, disable the check.
+      # Default: 40
+      statements: 50
+    gocognit:
+      # Minimal code complexity to report.
+      # Default: 30 (but we recommend 10-20)
+      min-complexity: 25
+    govet:
+      # Enable all analyzers.
+      # Default: false
+      enable-all: true
+      # Disable analyzers by name.
+      # Run `GL_DEBUG=govet golangci-lint run --enable=govet` to see default, all available analyzers, and enabled analyzers.
+      # Default: []
+      disable:
+        - fieldalignment # too strict
+
+    perfsprint:
+      # Optimizes into strings concatenation.
+      # Default: true
+      strconcat: false
+
+formatters:
+  enable:
+    - gofmt
