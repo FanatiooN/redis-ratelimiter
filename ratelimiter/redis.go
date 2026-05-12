@@ -22,47 +22,69 @@ func NewRedis(addr string, port int) *Redis {
 }
 
 func (r *Redis) IsAllowed(ctx context.Context, uniquePath string, rule LimiterRule) (*LimitStatus, error) {
-	currentTime := time.Now().UnixNano()
-	currentTimeStr := strconv.FormatInt(currentTime, 10)
+	var status *LimitStatus
 
-	lastTime := currentTime - rule.Window.Nanoseconds()
-	lastTimeStr := strconv.FormatInt(lastTime, 10)
+	err := r.client.Watch(ctx, func(tx *redis.Tx) error {
+		currentTime := time.Now().UnixNano()
+		currentTimeStr := strconv.FormatInt(currentTime, 10)
 
-	r.client.ZRemRangeByScore(ctx, uniquePath, "0", lastTimeStr)
+		lastTime := currentTime - rule.Window.Nanoseconds()
+		lastTimeStr := strconv.FormatInt(lastTime, 10)
 
-	cnt, err := r.client.ZCard(ctx, uniquePath).Result()
-	if err != nil {
-		return nil, err
-	}
+		err := tx.ZRemRangeByScore(ctx, uniquePath, "0", lastTimeStr).Err()
+		if err != nil {
+			return err
+		}
 
-	limit := rule.Limit
+		cnt, err := tx.ZCard(ctx, uniquePath).Result()
+		if err != nil {
+			return err
+		}
 
-	remaining := limit - int(cnt)
-	allowed := remaining > 0
+		limit := rule.Limit
+		remaining := limit - int(cnt)
+		allowed := remaining > 0
 
-	if allowed {
-		r.client.ZAdd(ctx, uniquePath, redis.Z{
-			Score:  float64(currentTime),
-			Member: currentTimeStr,
+		_, err = tx.TxPipelined(ctx, func(pipeliner redis.Pipeliner) error {
+			if allowed {
+				pipeliner.ZAdd(ctx, uniquePath, redis.Z{
+					Score:  float64(currentTime),
+					Member: currentTimeStr,
+				})
+				pipeliner.Expire(ctx, uniquePath, rule.Window)
+
+				remaining--
+			}
+
+			return nil
 		})
-		r.client.Expire(ctx, uniquePath, rule.Window)
+		if err != nil {
+			return err
+		}
 
-		remaining--
-	}
+		retryAfter := time.Time{}
 
-	retryAfter := time.Time{}
+		if !allowed {
+			oldest, err := tx.ZRangeWithScores(ctx, uniquePath, 0, 0).Result()
+			if err != nil {
+				return err
+			}
 
-	if !allowed {
-		oldest, _ := r.client.ZRangeWithScores(ctx, uniquePath, 0, 0).Result()
+			if len(oldest) > 0 {
+				oldestTime := time.Unix(0, int64(oldest[0].Score))
+				retryAfter = oldestTime.Add(rule.Window)
+			}
+		}
 
-		oldestTime := time.Unix(0, int64(oldest[0].Score))
-		retryAfter = oldestTime.Add(rule.Window)
-	}
+		status = &LimitStatus{
+			Limit:      limit,
+			Remaining:  remaining,
+			RetryAfter: retryAfter,
+			Allowed:    allowed,
+		}
 
-	return &LimitStatus{
-		Limit:      limit,
-		Remaining:  remaining,
-		RetryAfter: retryAfter,
-		Allowed:    allowed,
-	}, nil
+		return nil
+	})
+
+	return status, err
 }
