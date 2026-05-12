@@ -20,7 +20,7 @@ func main() {
 		Window: time.Second * 30,
 		Limit:  3,
 	}
-	rl.AddRule(ctx, "auth", authRule)
+	rl.AddRule("auth", authRule)
 
 	for i := 0; i < 100; i++ {
 		status, _ := rl.IsAllowed(ctx, "user", "path")

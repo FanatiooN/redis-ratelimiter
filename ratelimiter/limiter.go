@@ -24,16 +24,14 @@ func New(rule LimiterRule, addr string, port int) *RateLimiter {
 	}
 }
 
-func (r *RateLimiter) AddRule(ctx context.Context, path string, rule LimiterRule) error {
+func (r *RateLimiter) AddRule(path string, rule LimiterRule) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	r.rules[path] = rule
-
-	return nil
 }
 
-func (r *RateLimiter) ruleFor(ctx context.Context, path string) LimiterRule {
+func (r *RateLimiter) ruleFor(path string) LimiterRule {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -46,7 +44,7 @@ func (r *RateLimiter) ruleFor(ctx context.Context, path string) LimiterRule {
 }
 
 func (r *RateLimiter) IsAllowed(ctx context.Context, user, path string) (*LimitStatus, error) {
-	rule := r.ruleFor(ctx, path)
+	rule := r.ruleFor(path)
 	uniquePath := user + ":" + path
 
 	return r.redis.IsAllowed(ctx, uniquePath, rule)
