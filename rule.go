@@ -1,4 +1,4 @@
-package ratelimiter
+package redis_ratelimiter
 
 import "time"
 
