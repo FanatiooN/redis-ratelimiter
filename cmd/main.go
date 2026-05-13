@@ -1,29 +1,39 @@
 package main
 
 import (
-	"context"
 	"fmt"
-	"redis-ratelimiter/ratelimiter"
+	"net/http"
+	redis_ratelimiter "redis-ratelimiter"
 	"time"
 )
 
 func main() {
-	ctx := context.Background()
-
-	defaultRule := ratelimiter.LimiterRule{
+	defaultRule := redis_ratelimiter.LimiterRule{
 		Window: time.Minute,
-		Limit:  50,
+		Limit:  10,
 	}
-	rl := ratelimiter.New(defaultRule, "localhost", 6379)
+	rl := redis_ratelimiter.New(defaultRule, "localhost", 6379)
 
-	authRule := ratelimiter.LimiterRule{
+	authRule := redis_ratelimiter.LimiterRule{
 		Window: time.Second * 30,
 		Limit:  3,
 	}
-	rl.AddRule("auth", authRule)
+	rl.AddRule("/auth", authRule)
 
-	for i := 0; i < 100; i++ {
-		status, _ := rl.IsAllowed(ctx, "user", "path")
-		fmt.Printf("%v\n", status)
+	mw := redis_ratelimiter.Middleware(rl)
+
+	deflt := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		redis_ratelimiter.WriteJSON(w, http.StatusOK, map[string]string{"message": "hello world"})
+	})
+
+	auth := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		redis_ratelimiter.WriteJSON(w, http.StatusOK, map[string]string{"message": "auth ok"})
+	})
+
+	http.Handle("/", mw(deflt))
+	http.Handle("/auth", mw(auth))
+
+	if err := http.ListenAndServe(":8080", nil); err != nil {
+		fmt.Println(err)
 	}
 }
