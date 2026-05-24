@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
+	"strings"
 )
 
 func WriteJSON(w http.ResponseWriter, status int, data any) {
@@ -27,11 +29,11 @@ func WriteError(w http.ResponseWriter, status int, message string) {
 	WriteJSON(w, status, map[string]string{"message": message})
 }
 
-func Middleware(limiter Limiter) func(http.Handler) http.Handler {
+func Middleware(limiter Limiter, balancerIP string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			path := r.URL.Path
-			user := r.RemoteAddr
+			user := getIP(r, balancerIP)
 			status, err := limiter.IsAllowed(r.Context(), user, path)
 			if err != nil {
 				WriteError(w, http.StatusInternalServerError, "internal server error")
@@ -44,4 +46,21 @@ func Middleware(limiter Limiter) func(http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 		})
 	}
+}
+
+func getIP(r *http.Request, balancerIP string) string {
+	ip, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+
+	if ip == balancerIP {
+		forwarded := r.Header.Get("X-Forwarded-For")
+		if forwarded != "" {
+			forwardedIP := strings.Split(forwarded, ",")[0]
+			return strings.TrimSpace(forwardedIP)
+		}
+	}
+
+	return ip
 }
